@@ -48,7 +48,6 @@ private:
 	void getComputerInfo();
 	void getUSBDevice();
 	static bool mmpInit();
-	CCyUSBEndPoint* getEndPt();
 	bool downloadConfigDataFile();
 	static void XferLoop();
 	static void AbortXferLoop(PUCHAR *buffers, PUCHAR *contexts, OVERLAPPED inOvLap);

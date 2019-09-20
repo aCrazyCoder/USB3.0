@@ -27,9 +27,12 @@ USB30::USB30(QWidget *parent)
 	QObject::connect(pushButton, SIGNAL(clicked()), this, SLOT(StartBtn_Click()));
 	QMetaObject::connectSlotsByName(this);
 
+	bulkInEndPt = NULL;
+	bulkOutEndPt = NULL;
+
 	getComputerInfo();
 	getUSBDevice();
-
+	
 	XferThread = QThread::create(XferLoop);
 	XferThread->setParent(this);
 	//connect(XferThread, &QThread::finished, XferThread, &QObject::deleteLater);
@@ -137,6 +140,19 @@ void USB30::getUSBDevice()
 							s.append("0x" + QString::number(ept->Address, 16) + ")");
 							textBrowser->append(s);
 						}
+						if (ept->bIn && (ept->Attributes == 2))
+						{
+							bulkInEndPt = ept;
+						}
+						else
+						{
+							bulkOutEndPt = ept;
+						}
+						if (bulkInEndPt == NULL || bulkOutEndPt == NULL)
+						{
+							textBrowser->append(QString::fromLocal8Bit("USB¶Ëµã³õÊ¼»¯Ê§°Ü"));
+							pushButton->setEnabled(false);
+						}
 					}
 				}
 			}
@@ -175,26 +191,8 @@ bool USB30::mmpInit()
 	return true;
 }
 
-CCyUSBEndPoint* USB30::getEndPt()
-{
-	int eptCnt = USBDevice->EndPointCount();
-	for (int e = 1; e < eptCnt; e++)
-	{
-		CCyUSBEndPoint *ept = USBDevice->EndPoints[e];
-		if (ept->bIn && (ept->Attributes == 2))
-		{
-			return ept;
-		}
-		else
-		{
-			return NULL;
-		}
-	}
-}
-
 bool USB30::downloadConfigDataFile()
 {
-	getEndPt();
 
 	return false;
 }
@@ -216,7 +214,7 @@ void USB30::StartBtn_Click()
 		}
 		else
 		{
-			EndPt = getEndPt();
+			EndPt = bulkInEndPt;
 			pushButton->setText(QString::fromLocal8Bit("Í£Ö¹"));
 			bStreaming = true;
 			if (XferThread->isFinished()) // Start-over
