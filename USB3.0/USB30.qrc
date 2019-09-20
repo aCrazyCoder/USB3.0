@@ -1,5 +1,7 @@
 <RCC>
     <qresource prefix="/USB30">
         <file>Resources/usb.ico</file>
+        <file>Resources/16KB_start.txt</file>
+        <file>Resources/16KB_stop.txt</file>
     </qresource>
 </RCC>

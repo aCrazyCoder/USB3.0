@@ -1,6 +1,7 @@
 #include "USB30.h"
 #define PPX			8
 #define TimeOut		1500
+#define CONFIGFILESIZE 16384
 
 USB30::USB30(QWidget *parent)
 	: QMainWindow(parent)
@@ -148,13 +149,13 @@ void USB30::getUSBDevice()
 						{
 							bulkOutEndPt = ept;
 						}
-						if (bulkInEndPt == NULL || bulkOutEndPt == NULL)
-						{
-							textBrowser->append(QString::fromLocal8Bit("USB端点初始化失败"));
-							pushButton->setEnabled(false);
-						}
 					}
 				}
+			}
+			if (bulkInEndPt == NULL || bulkOutEndPt == NULL)
+			{
+				textBrowser->append(QString::fromLocal8Bit("USB端点初始化失败"));
+				pushButton->setEnabled(false);
 			}
 		}
 	}
@@ -191,45 +192,90 @@ bool USB30::mmpInit()
 	return true;
 }
 
+/*
+ *	下载开始文件不需要读取数据。
+ *  下载停止文件需要下载完后，读取一个MaxPktSize大小数据包，以触发FPGA读取PC下传
+ *  的配置数据包，这是由硬件决定的，以免在下传数据时，破坏上传数据；然后再读取一个
+ *  MaxPktSize*PPX大小数据包，此数据包是配置未更新时最后一个数据包，下一个数据包才是
+ *  配置更新后的第一个数据包。
+ *  程序思路：如果下传数据线程没有在running，则表示要下传开始文件给下位机
+ */
 bool USB30::downloadConfigDataFile()
 {
-
-	return false;
-}
-
-void USB30::StartBtn_Click()
-{
-	/*if (downloadConfigDataFile() == false)
-	{
-		QMessageBox::warning(this, "USB Exception", QString::fromLocal8Bit("下载配置数据失败，请重试"));
-		return;
-	}*/
 	if (XferThread)
 	{
 		if (XferThread->isRunning())
 		{
-			pushButton->setText(QString::fromLocal8Bit("开始"));
+			EndPt = bulkInEndPt;
 			bStreaming = false;
 			XferThread->wait(10);
+
+			return true;
 		}
 		else
 		{
-			EndPt = bulkInEndPt;
-			pushButton->setText(QString::fromLocal8Bit("停止"));
-			bStreaming = true;
-			if (XferThread->isFinished()) // Start-over
+			EndPt = bulkOutEndPt;
+			QByteArray path = QString(QDir::currentPath() + "/Resources/16KB_start.txt").toLatin1();
+			long configDataFileLength;
+			ifstream configDataFile;
+			configDataFile.open(path.data(), ios::binary);
+			configDataFile.seekg(0, ios::end);
+			configDataFileLength = configDataFile.tellg();
+			configDataFile.seekg(0, ios::beg);
+			if (configDataFileLength != CONFIGFILESIZE)
 			{
-				XferThread = QThread::create(&XferLoop);
-				XferThread->setParent(this);
+				textBrowser->append(QString::fromLocal8Bit("配置数据文件有误"));
+				pushButton->setEnabled(false);
+				return false;
 			}
-			XferThread->start();
+			PCHAR buffer = new CHAR[CONFIGFILESIZE];
+			configDataFile.read(buffer, CONFIGFILESIZE);
+			configDataFile.close();
+			EndPt->SetXferSize(CONFIGFILESIZE);
+			if (EndPt->XferData((PUCHAR)buffer, configDataFileLength))
+			{
+				return true;
+			}
+			else
+			{
+				textBrowser->append(QString::fromLocal8Bit("下载配置数据失败"));
+				return false;
+			}
 		}
-	} 
+	}
 	else
 	{
 		QMessageBox::warning(this, "USB Exception", QString::fromLocal8Bit("数据采集线程创建失败"));
 		pushButton->setEnabled(false);
+		return false;
 	}
+}
+
+void USB30::StartBtn_Click()
+{
+	if (downloadConfigDataFile() == false)
+	{
+		QMessageBox::warning(this, "USB Exception", QString::fromLocal8Bit("下载配置数据失败，请重试"));
+		return;
+	}
+	if (XferThread->isRunning())
+	{
+		pushButton->setText(QString::fromLocal8Bit("开始"));
+		bStreaming = false;
+		XferThread->wait(10);
+	}
+	else
+	{
+		EndPt = bulkInEndPt;
+		pushButton->setText(QString::fromLocal8Bit("停止"));
+		bStreaming = true;
+		if (XferThread->isFinished()) // Start-over
+		{
+			XferThread = QThread::create(&XferLoop);
+			XferThread->setParent(this);
+		}
+		XferThread->start();
+	} 
 }
 
 void USB30::XferLoop()

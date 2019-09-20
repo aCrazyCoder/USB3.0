@@ -2,6 +2,7 @@
 
 #include "windows.h"
 #include "CyAPI.h"
+#include <fstream>
 #include <QtWidgets/QMainWindow>
 #include <QTime>
 #include <QStandardPaths>
@@ -12,6 +13,9 @@
 #include <QLayout>
 #include <QPushButton>
 #include <QIcon>
+#include <QDir>
+#include <QByteArray>
+using namespace std;
 
 class USB30 : public QMainWindow
 {
