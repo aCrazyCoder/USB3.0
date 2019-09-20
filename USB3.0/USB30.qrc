@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/USB30">
+        <file>Resources/usb.ico</file>
+    </qresource>
+</RCC>
