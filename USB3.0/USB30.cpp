@@ -206,9 +206,9 @@ bool USB30::downloadConfigDataFile()
 	{
 		if (XferThread->isRunning())
 		{
-			EndPt = bulkInEndPt;
+			/*EndPt = bulkInEndPt;
 			bStreaming = false;
-			XferThread->wait(10);
+			XferThread->wait(10);*/
 
 			return true;
 		}
